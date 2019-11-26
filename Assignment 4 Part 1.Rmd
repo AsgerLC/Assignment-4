@@ -56,17 +56,13 @@ N.B. to give you a bit more data I included data from previous years (Study1, St
 # Loading packages and data
 pacman::p_load(pacman,tidyverse, stringr, stringi, groupdata2)
 
-# Loading data files for all five trials for group 8
-turn_8 <- read.csv("data/Study4_G8_T1_TurnTaking.csv")
-sync_8 <- read.csv("data/Study4_G8_T2_Synchronous.csv")
-conv_8 <- read.csv("data/Study4_G8_T3_Conversation.csv")
-coop_8 <- read.csv("data/Study4_G8_T4_MovementCoop.csv")
-g_move_8 <- read.csv("data/Study4_G8_T5_MovementGuided.csv")
+# Loading an example data file of the "synchronous" condition
+sync_raw <- read.csv("data/Study4_G8_T2_Synchronous.csv")
 
 ## Remove outliers
 
 ### Tip, check the function below
-removeOuts<- function(ts,threshold){
+remove_outs<- function(ts,threshold){
   sigma=sd(ts,na.rm=T)
   mu=(mean(ts,na.rm=T))
   ts[ts > (mu +
@@ -81,85 +77,26 @@ removeOuts<- function(ts,threshold){
 threshold=2.5 # Default value at 2.5 sds from the mean
 
 
-
-sync_8a <-sync_8 %>% 
-  mutate_at(c("min","Resp1","Resp2","HR1","HR2","ECG1","ECG2"), removeOuts, threshold)
-
-
-
-# Plot raw data againt those with the artiacts removed
-
-sync_8$HR1 %>% matplot(type="l")
-sync_8$HR2 %>% matplot(type="l")
-sync_8$ECG1%>% matplot(type="l")
-sync_8$ECG2%>% matplot(type="l")
-sync_8$Resp1 %>% matplot(type="l")
-sync_8$Resp2 %>% matplot(type="l")
+# Testing the remove_outs function
+sync_2 <-sync_raw %>% 
+  mutate_at(c("min","Resp1","Resp2","HR1","HR2", "ECG1", "ECG2"), remove_outs, threshold)
 
 
-sync_8a$HR1 %>% matplot(type="l")
-sync_8a$HR2 %>% matplot(type="l")
-sync_8a$ECG1%>% matplot(type="l")
-sync_8a$ECG2%>% matplot(type="l")
-sync_8a$Resp1 %>% matplot(type="l")
-sync_8a$Resp2 %>% matplot(type="l")
+# We need to scale the data (different people have different hert rate ranges and the like).
 
-## Scale
+# Testing whether scale() does the job
 
-sync_8b<-sync_8a %>% 
-  mutate_at(c("min","Resp1","Resp2","HR1","HR2","ECG1","ECG2"), scale)
-
-
-### Tip: if scale() gives some issues, try the one below
-#z_scale <- function(column){
-#  column_c <- (column - mean(column)) / sd(column)
-#}
-
-
-# Plot again to check how scaled data look like
-
-sync_8$HR1 %>% matplot(type="l")# Plot
-sync_8$HR2 %>% matplot(type="l")# Plot
-sync_8$ECG1%>% matplot(type="l")# Plot
-sync_8$ECG2%>% matplot(type="l")# Plot
-sync_8$Resp1 %>% matplot(type="l")# Plot
-sync_8$Resp2 %>% matplot(type="l")# Plot
-
-sync_8a$HR1 %>% matplot(type="l")# Plot
-sync_8a$HR2 %>% matplot(type="l")# Plot
-sync_8a$ECG1%>% matplot(type="l")# Plot
-sync_8a$ECG2%>% matplot(type="l")# Plot
-sync_8a$Resp1 %>% matplot(type="l")# Plot
-sync_8a$Resp2 %>% matplot(type="l")# Plot
-
-sync_8b$HR1 %>% matplot(type="l")# Plot
-sync_8b$HR2 %>% matplot(type="l")# Plot
-sync_8b$ECG1%>% matplot(type="l")# Plot
-sync_8b$ECG2%>% matplot(type="l")# Plot
-sync_8b$Resp1 %>% matplot(type="l")# Plot
-sync_8b$Resp2 %>% matplot(type="l")# Plot
-
+sync_3<-sync_2 %>% mutate_at(c("min","Resp1","Resp2","HR1","HR2", "ECG1", "ECG2"), scale)
 
 ## Downsample
-### This is tricky, so you can have a look at my code  (relying on Ludvig's groupdata2) if you get stuck
-
-
-#sync_8c = sync_8b %>%
- #groupdata2::group(n = 100, method = 'greedy') %>%
- #dplyr::summarise(
-  # time = mean(TimeMs,na.rm=T),
-   #HR1 = mean(HR1,na.rm=T),
-   #HR2 = mean(HR2,na.rm=T),
-   #Resp1 = mean(Resp1,na.rm=T),
-   #Resp2 = mean(Resp2,na.rm=T),
-   #rowname = rowname[1])
+### We create the following function to downsample
 
 
 
 downsample <- function(df) {
   
   moose <- df %>%
-  groupdata2::group(n = 100, method = 'greedy') %>%
+  groupdata2::group(n = 1000, method = 'greedy') %>%
   dplyr::summarise(
    time = mean(TimeMs,na.rm=T),
    HR1 = mean(HR1,na.rm=T),
@@ -172,29 +109,50 @@ downsample <- function(df) {
     return(moose)
 }
 
+# Testing the function
 
-# Look for flatlines! BY PLOTTING!
-## Alternatively, look at the lowest possible heartbeat duration (2 seconds). <- Remove the whole series of heartrate's that are the same, or alternatively, throw out the data.
+sync_4 <- downsample(sync_3)
 
 
-
-sync_8c <- downsample(sync_8b)
 
 pacman::p_load(pacman,tidyverse, stringr, stringi)
 
-## Plot the downsampled data
-p4 <- ggplot(data = sync_83) +
+## Plotting examples of the data
+#sync_raw$HR1 %>% matplot(type="l")# Plot
+#sync_raw$HR2 %>% matplot(type="l")# Plot
+#sync_raw$ECG1%>% matplot(type="l")# Plot
+#sync_raw$ECG2%>% matplot(type="l")# Plot
+#sync_raw$Resp1 %>% matplot(type="l")# Plot
+#sync_raw$Resp2 %>% matplot(type="l")# Plot
+
+#sync_2$HR1 %>% matplot(type="l")# Plot
+#sync_2$HR2 %>% matplot(type="l")# Plot
+#sync_2$ECG1%>% matplot(type="l")# Plot
+#sync_2$ECG2%>% matplot(type="l")# Plot
+#sync_2$Resp1 %>% matplot(type="l")# Plot
+#sync_2$Resp2 %>% matplot(type="l")# Plot
+
+#sync_3$HR1 %>% matplot(type="l")# Plot
+#sync_3$HR2 %>% matplot(type="l")# Plot
+#sync_3$ECG1%>% matplot(type="l")# Plot
+#sync_3$ECG2%>% matplot(type="l")# Plot
+#sync_3$Resp1 %>% matplot(type="l")# Plot
+#sync_3$Resp2 %>% matplot(type="l")# Plot
+
+p4 <- ggplot(data = sync_4) +
   geom_path(aes(time, Resp1, color = "P1")) +
   geom_path(aes(time, Resp2, color = "P2")) +
   labs(x = "time", y = "Resp") +
   theme(legend.position="bottom")
 p4
 
-## Now add the group, trial, condition to the cleaned up, scaled, downsampled data
+# Now we add the group, trial, condition to the cleaned up, scaled, downsampled data
 
 ## Using the following filename as an example:
 
 "data/Study4_G8_T1_TurnTaking.csv"
+
+### We create the following function to do it with:
 
 read_title <- function(filename) {
     #Parse filename to extract Study, group, trial and condition
@@ -215,8 +173,10 @@ read_title <- function(filename) {
     return(moose)
 }
 
+# Testing the function:
 
-## Tip the info is in the file name
+read_title("data/Study4_G8_T1_TurnTaking.csv")
+
 
 ```
 
@@ -228,23 +188,28 @@ Go through all the files (with a function passed onto map_df), check which files
 A couple of tips:
 - looping is oh so slow. Making a function and using Map/Map_df is your salvation.
 - each study restarts the group numbering, so you should make sure to change that (e.g. 100 * Study + Group)
-- you need to make sure all the data are meaningful or something has to be removed. Plotting is your friend. E.g. "Study1_G1_T1_sync_8" has one bad Respiration signal. We could replace it with NAs
+- you need to make sure all the data are meaningful or something has to be removed. Plotting is your friend. E.g. "Study1_G1_T1_sync_raw" has one bad Respiration signal. We could replace it with NAs
 
 
 ```{r}
+# Reloading packages (to make working within a single chunk easier)
+pacman::p_load(pacman,tidyverse, stringr, stringi, groupdata2)
 
-
+# Creating a pre-process function which does all of the above
 pre_process <- function(filename) {
+  # Creating two objects, one using read.csv, the other using read_title
   df <- read.csv(filename)
-
   numbers <- read_title(filename)
-  
+  # Setting threshold for remove_outs
   threshold = 2.5
   
-  
-  df  <- df %>%   mutate_at(c("Resp1","Resp2","HR1","HR2","ECG1","ECG2"), removeOuts, threshold)
-  df <- df %>%    mutate_at(c("Resp1","Resp2","HR1","HR2","ECG1","ECG2"), scale)    
-  if (numbers$study != 4) {df <- df %>% rename(TimeMs = time)}
+  # Mutating df with remove_outs and scale
+  df  <- df %>%   mutate_at(c("Resp1","Resp2","HR1","HR2", "ECG1", "ECG2"), remove_outs, threshold)
+  df <- df %>%    mutate_at(c("Resp1","Resp2","HR1","HR2", "ECG1", "ECG2"), scale)
+  # Correcting some name issues between studies
+  print(is.na(numbers$study))
+  if (numbers$study != 4){df <- df %>% rename(TimeMs = time)}
+  # Downsampling 1000 times
   df <- downsample(df)
   
   moose <- cbind(numbers, df)
@@ -252,46 +217,167 @@ pre_process <- function(filename) {
     return(moose)
 }
 
+# Testing the function on a single file
 example <- pre_process("data/Study4_G8_T3_Conversation.csv")
 
+# Setting working directory (briefly) to /data, and applying pre_process() to all the files, creating one big dataframe called "phys_data"
+setwd("C:/Users/Asger/Desktop/Cognitive Science BA/3. Semester/ExpMeth 3/Assignments/Assignment-4/data/"); phys_data = list.files(pattern = ".csv") %>% purrr::map_df(pre_process); setwd("C:/Users/Asger/Desktop/Cognitive Science BA/3. Semester/ExpMeth 3/Assignments/Assignment-4")
 
-rlang::last_error()
-
-
-# Loading data files for all five trials for group 8
-turn_81 <- pre_process("data/Study4_G8_T1_TurnTaking.csv")
-sync_81 <- pre_process("data/Study4_G8_T2_Synchronous.csv")
-conv_81 <- pre_process("data/Study4_G8_T3_Conversation.csv")
-coop_81 <- pre_process("data/Study4_G8_T4_MovementCoop.csv")
-g_move_81 <- pre_process("data/Study4_G8_T5_MovementGuided.csv")
+# Writing the result of this as a .csv
+write.csv(phys_data, "Pre-processed Physiological Data.csv")
 
 
-
-
-
-
-setwd("C:/Users/Asger/Desktop/Cognitive Science BA/3. Semester/ExpMeth 3/Assignments/Assignment-4/data/"); phys_data = list.files(pattern = ".csv") %>% purrr::map_df(pre_process) 
-
-
-write.csv(phys_data, "Cleaned Physiological Data.csv")
-
-
-phys_data <- read.csv("Cleaned Physiological Data.csv")
+phys_data <- read.csv("Pre-processed Physiological Data.csv")
 phys_data[,1] <- NULL
 
-#  Identify all files to be read
+# Now we need to make sure all the data are meaningful or something has to be removed. For the purposes of this exercise, we will only be making models based on study 4. As a result, we have only plotted and examined the data from study 4
 
-# Run the function on the whole dataset using map_df
 
-         
-# Now we need to make sure all the data are meaningful or something has to be removed
-# E.g. "Study1_G1_T1_sync_8" has one bad Respiration signal. We could replace it with NAs
+# Plotting time:
+## Isolating study 4
+s4 <- phys_data %>% filter(study == 4)
 
-# plots plots plots
+## looping (For heartrate) 
+for(i in 1:8) {
+gru <- s4 %>% filter(group == i)
+plott <- ggplot(gru, aes(x = time, y = value)); plott <- plott + facet_wrap(~ condition, scales = "free_x") + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+nam <- paste("A", i, sep = "")
+assign(nam, plott)
+}
+
+# Checking the plots
+A1
+A2
+A3 # This one is weird
+A4
+A5
+A6 # This one also has weird plots
+A7 # There seems to be some flatlinging here
+A8 # Outliers and weird plots
+
+# loop-de-loop (For respiration) 
+for(i in 1:8) {
+gru <- s4 %>% filter(group == i)
+plott <- ggplot(gru, aes(x = time, y = value)); plott <- plott + facet_wrap(~ condition, scales = "free_x") + geom_line(aes(y = Resp1, color = "Resp1"), size = 1) + geom_line(aes(y = Resp2, colour = "Resp2"))
+nam <- paste("B", i, sep = "")
+assign(nam, plott)
+}
+
+# Checking the plots
+B1
+B2
+B3
+B4 # Suspect data 
+B5 
+B6 
+B7 
+B8 
+
+# List of specific files I don't like
+# > Group 3 HR - Conversation, Movement, Synchronous, TurnTaking 
+# > Group 6 HR - Synchronous, TurnTaking
+# > Group 7 HR - Movement, MovementCoop, Conversation, TurnTaking
+# > Group 8 HR - MovemntCoop
+# > Group 4 Resp - Movement, Turntaking
+
+# Lets have a look at the weird ones: 
+# HR - Group 3 - Conversation
+HR_3_Con <- s4 %>% filter(group == 3) %>% filter(condition == "Conversation")
+Plot_HR_3_con <- ggplot(HR_3_Con, aes(x = time, y = value)); Plot_HR_3_con <- Plot_HR_3_con + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_3_con #<--- To be terminated, HR Group 3, Conv, HR1
+# HR - Group 3 - Movement
+HR_3_Mov <- s4 %>% filter(group == 3) %>% filter(condition == "Movement")
+Plot_HR_3_mov <- ggplot(HR_3_Mov, aes(x = time, y = value)); Plot_HR_3_mov <- Plot_HR_3_mov + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_3_mov #<--- To be terminated, HR Group 3, Mov, HR1
+# HR - Group 3 - Synchronous
+HR_3_Syn <- s4 %>% filter(group == 3) %>% filter(condition == "Synchronous")
+Plot_HR_3_syn <- ggplot(HR_3_Syn, aes(x = time, y = value)); Plot_HR_3_syn <- Plot_HR_3_syn + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_3_syn #<--- To be terminated, HR Group 3, Syn, HR1
+# HR - Group 3 - TurnTaking
+HR_3_Tt <- s4 %>% filter(group == 3) %>% filter(condition == "TurnTaking")
+Plot_HR_3_tt <- ggplot(HR_3_Tt, aes(x = time, y = value)); Plot_HR_3_tt <- Plot_HR_3_tt + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_3_tt #<--- To be terminated, HR Group 3, TT, HR1
+# HR - Group 6 - Synchronous
+HR_6_Syn <- s4 %>% filter(group == 6) %>% filter(condition == "Synchronous")
+Plot_HR_6_syn <- ggplot(HR_6_Syn, aes(x = time, y = value)); Plot_HR_6_syn <- Plot_HR_6_syn + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_6_syn #<--- To be terminated, HR Group 6, Syn, HR1
+# HR - Group 6 - TurnTaking
+HR_6_Tt <- s4 %>% filter(group == 6) %>% filter(condition == "TurnTaking")
+Plot_HR_6_tt <- ggplot(HR_6_Tt, aes(x = time, y = value)); Plot_HR_6_tt <- Plot_HR_6_tt + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2")) #<--- To be terminated, HR Group 6, TT, HR1
+Plot_HR_6_tt
+# HR - Group 7 - Movement
+HR_7_Mov <- s4 %>% filter(group == 7) %>% filter(condition == "Movement")
+Plot_HR_7_mov <- ggplot(HR_7_Mov, aes(x = time, y = value)); Plot_HR_7_mov <- Plot_HR_7_mov + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_7_mov #<--- To be terminated, HR Group 7, Mov, HR2
+# HR - Group 7 - MovementCoop
+HR_7_MovC <- s4 %>% filter(group == 7) %>% filter(condition == "MovementCoop")
+Plot_HR_7_movc <- ggplot(HR_7_MovC, aes(x = time, y = value)); Plot_HR_7_movc <- Plot_HR_7_movc + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_7_movc #<--- To be terminated, HR Group 7, MovC, HR2
+# HR - Group 7 - Conversation
+HR_7_Con <- s4 %>% filter(group == 7) %>% filter(condition == "Conversation")
+Plot_HR_7_con <- ggplot(HR_7_Con, aes(x = time, y = value)); Plot_HR_7_con <- Plot_HR_7_con + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_7_con # We've decided to keep this, despite it not being that great. It isn't horrible either and we need data.
+# HR - Group 7 - TurnTaking
+HR_7_Tt <- s4 %>% filter(group == 7) %>% filter(condition == "TurnTaking")
+Plot_HR_7_tt <- ggplot(HR_7_Tt, aes(x = time, y = value)); Plot_HR_7_tt <- Plot_HR_7_tt + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_7_tt #<--- To be terminated, HR Group 7, TT, HR2
+# HR - Group 7 - Synchronous
+HR_7_Syn <- s4 %>% filter(group == 7) %>% filter(condition == "Synchronous")
+Plot_HR_7_syn <- ggplot(HR_7_Syn, aes(x = time, y = value)); Plot_HR_7_syn <- Plot_HR_7_syn + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_7_syn #<--- To be terminated, HR Group 7, Syn, HR2
+# HR - Group 8 - MovementCoop
+HR_8_MovC <- s4 %>% filter(group == 8) %>% filter(condition == "MovementCoop")
+Plot_HR_8_movc <- ggplot(HR_8_MovC, aes(x = time, y = value)); Plot_HR_8_movc <- Plot_HR_8_movc + geom_line(aes(y = HR1, color = "HR1"), size = 1) + geom_line(aes(y = HR2, colour = "HR2"))
+Plot_HR_8_movc #<--- To be terminated, HR Group 8, MovC, HR2
+
+# Resp - Group 4 - Movement
+Resp_4_Mov <- s4 %>% filter(group == 4) %>% filter(condition == "Movement")
+Plot_Resp_4_mov <- ggplot(Resp_4_Mov, aes(x = time, y = value)); Plot_Resp_4_mov <- Plot_Resp_4_mov + geom_line(aes(y = Resp1, color = "Resp1"), size = 1) + geom_line(aes(y = Resp2, colour = "Resp2"))
+Plot_Resp_4_mov # We've decided to keep this, despite it not being that great. It isn't horrible either and we need data.
+# Resp - Group 4 - TurnTaking
+Resp_4_Tt <- s4 %>% filter(group == 4) %>% filter(condition == "TurnTaking")
+Plot_Resp_4_tt <- ggplot(Resp_4_Tt, aes(x = time, y = value)); Plot_Resp_4_tt <- Plot_Resp_4_tt + geom_line(aes(y = Resp1, color = "Resp1"), size = 1) + geom_line(aes(y = Resp2, colour = "Resp2"))
+Plot_Resp_4_tt #<--- To be terminated, Resp Group 4, TT, Resp1
+# Resp - Group 4 - MovementCoop 
+Resp_4_MovC <- s4 %>% filter(group == 4) %>% filter(condition == "MovementCoop")
+Plot_Resp_4_movc <- ggplot(Resp_4_MovC, aes(x = time, y = value)); Plot_Resp_4_movc <- Plot_Resp_4_movc + geom_line(aes(y = Resp1, color = "Resp1"), size = 1) + geom_line(aes(y = Resp2, colour = "Resp2"))
+Plot_Resp_4_movc # We've decided to keep this, despite it not being that great. It isn't horrible either and we need data. 
 
 # Remove bad data
+## We have elected to remove the following signals:
+
+### HR Group 3, Conv, HR1
+### HR Group 3, Mov, HR1
+### HR Group 3, Sync, HR1
+### HR Group 3, TurnTaking, HR1
+### HR Group 6, Syn, HR1
+### HR Group 6, TurnTaking, HR1
+### HR Group 7, Mov, HR2
+### HR Group 7, MovC, HR2
+### HR Group 7, TurnTaking, HR2
+### HR Group 7, Syn, HR2
+### HR Group 8, MovC, HR2
+### Resp Group 4, TT Resp1
+
+## Replacing those signals with NA's
+
+phys_data$HR1[phys_data$study == 4 & phys_data$group == 3 & phys_data$condition == "Conversation"] <- NA
+phys_data$HR1[phys_data$study == 4 & phys_data$group == 3 & phys_data$condition == "Movement"] <- NA
+phys_data$HR1[phys_data$study == 4 & phys_data$group == 3 & phys_data$condition == "Synchronous"] <- NA
+phys_data$HR1[phys_data$study == 4 & phys_data$group == 3 & phys_data$condition == "TurnTaking"] <- NA
+phys_data$HR1[phys_data$study == 4 & phys_data$group == 6 & phys_data$condition == "Synchronous"] <- NA
+phys_data$HR1[phys_data$study == 4 & phys_data$group == 6 & phys_data$condition == "TurnTaking"] <- NA
+phys_data$HR2[phys_data$study == 4 & phys_data$group == 7 & phys_data$condition == "Movement"] <- NA
+phys_data$HR2[phys_data$study == 4 & phys_data$group == 7 & phys_data$condition == "MovementCoop"] <- NA
+phys_data$HR2[phys_data$study == 4 & phys_data$group == 7 & phys_data$condition == "TurnTaking"] <- NA
+phys_data$HR2[phys_data$study == 4 & phys_data$group == 7 & phys_data$condition == "Synchronous"] <- NA
+phys_data$HR2[phys_data$study == 4 & phys_data$group == 8 & phys_data$condition == "MovementCoop"] <- NA
+phys_data$Resp1[phys_data$study == 4 & phys_data$group == 4 & phys_data$condition == "TurnTaking"] <- NA
+
+good_data <- phys_data # Obviously there may still be bad data in the other studies. We found removing that to be beyond the scope of this assignment.
 
 # Save the data
+write.csv(good_data, "Bad Data Removed.csv")
 
 ```
 
@@ -318,11 +404,13 @@ Bonus question: what if we include an additional layer? Is my heart rate just ad
 
 
 ```{r}
+# Generate a column for each: previous HR1, HR2, Resp1, Resp2
+# Generate a column for each: change in HR1, HR2, Resp1, Resp2
 
-# Genearate a column for each: previous HR1, HR2, Resp1, Resp2
-# Genearate a column for each: change in HR1, HR2, Resp1, Resp2
 
-phys_data <- phys_data %>% 
+good_data <- read.csv("Bad Data Removed.csv")
+
+good_data <- good_data %>% 
   group_by(group, condition) %>% 
   mutate(HR1fut = lead(HR1,1), #lead does the same as lag
          HR2fut = lead(HR2,1), 
@@ -333,27 +421,25 @@ phys_data <- phys_data %>%
          Resp1change = Resp1fut - Resp1,
          Resp2change = Resp2fut - Resp2)
 
-
-
 # Make the data long, so we can analyze both participants at the same time 
 
 
 # creating long data for HR change
-d_HR_change_self <- gather(phys_data, participant, HR_change_self, # new vars
+d_HR_change_self <- gather(good_data, participant, HR_change_self, # new vars
 HR1change, HR2change) %>% #old vars
   select( # drop irrelevant vars
   time, HR_change_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
   participant = parse_number(as.character(group)) * 10 + parse_number(participant))
 
 #creating long data for Respiration
-d_Resp_change_self <- gather(phys_data, participant, Resp_change_self, # new vars
+d_Resp_change_self <- gather(good_data, participant, Resp_change_self, # new vars
 Resp1change, Resp2change) %>% #old vars
   select( # drop irrelevant vars
   time, Resp_change_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
   participant = parse_number(as.character(group)) * 10 + parse_number(participant))
 
 #heart rate self
-d_HR_self <- gather(phys_data, participant, HR_self, # new vars
+d_HR_self <- gather(good_data, participant, HR_self, # new vars
 HR1, HR2) %>% #old vars
   select( # drop irrelevant vars
   time, HR_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
@@ -361,7 +447,7 @@ HR1, HR2) %>% #old vars
 
 
 #future heart rate
-d_HR_fut <- gather(phys_data, participant, HR_fut, # new vars
+d_HR_fut <- gather(good_data, participant, HR_fut, # new vars
 HR1fut, HR2fut) %>% #old vars
   select( # drop irrelevant vars
   time, HR_fut, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
@@ -370,36 +456,36 @@ HR1fut, HR2fut) %>% #old vars
 
 
 #Respiration self
-d_Resp_self <- gather(phys_data, participant, Resp_self, # new vars
+d_Resp_self <- gather(good_data, participant, Resp_self, # new vars
 Resp1, Resp2) %>% #old vars
   select( # drop irrelevant vars
   time, Resp_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
   participant = parse_number(as.character(group)) * 10 + parse_number(participant))
 
 #future Respiration rate
-d_Resp_fut <- gather(phys_data, participant, Resp_fut, # new vars
+d_Resp_fut <- gather(good_data, participant, Resp_fut, # new vars
 Resp1fut, Resp2fut) %>% #old vars
   select( # drop irrelevant vars
   time, Resp_fut, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
   participant = parse_number(as.character(group)) * 10 + parse_number(participant))
 
 
-#HR and Resp other renaming stuff
-phys_data_new = phys_data
-phys_data_new$HR1 = phys_data$HR2
-phys_data_new$HR2 = phys_data$HR1
-phys_data_new$Resp1 = phys_data$Resp2
-phys_data_new$Resp2 = phys_data$Resp1
+# Making a new dataframe in which HR1/2 and Resp1/2 are switched, to generate the "other" variables
+good_data_2 = good_data
+good_data_2$HR1 = good_data$HR2
+good_data_2$HR2 = good_data$HR1
+good_data_2$Resp1 = good_data$Resp2
+good_data_2$Resp2 = good_data$Resp1
 
 #HR other
-d_HR_other <- gather(phys_data_new, participant, HR_other, # new vars
+d_HR_other <- gather(good_data_2, participant, HR_other, # new vars
 HR1, HR2) %>% #old vars
   select( # drop irrelevant vars
   time, HR_other, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
   participant = parse_number(as.character(group)) * 10 + parse_number(participant))
 
 #Resp other
-d_Resp_other <- gather(phys_data_new, participant, Resp_other, # new vars
+d_Resp_other <- gather(good_data_2, participant, Resp_other, # new vars
 Resp1, Resp2) %>% #old vars
   select( # drop irrelevant vars
   time, Resp_other, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
@@ -407,23 +493,43 @@ Resp1, Resp2) %>% #old vars
 
 
 #merging dataframes
-phys_all = cbind(d_HR_change_self, d_HR_self, d_HR_fut, d_HR_other, d_Resp_change_self, d_Resp_self, d_Resp_fut, d_Resp_other)
-phys_all_2 = phys_all %>% select(time, HR_change_self, HR_self, HR_fut, HR_other, participant, study, group, condition, trial, Resp_change_self, Resp_self, Resp_fut, Resp_other)
+d_all = cbind(d_HR_change_self, d_HR_self, d_HR_fut, d_HR_other, d_Resp_change_self, d_Resp_self, d_Resp_fut, d_Resp_other)
+phys_long = d_all %>% select(time, HR_change_self, HR_self, HR_fut, HR_other, participant, study, group, condition, trial, Resp_change_self, Resp_self, Resp_fut, Resp_other)
 
 #saving long data
-write.csv(phys_all_2, "phys_long.csv")
+write.csv(phys_long, "Bad Data Removed, Long.csv")
+
+```
 
 
 
-# Modelling time!
 
-pacman::p_load(pacman,tidyverse, stringr, stringi)
+```{r}
+# Modelling time! Let's set up the data
 
-phys_long <- read.csv("phys_long.csv")
+## Reloading packages for convenience
+pacman::p_load(pacman,tidyverse, stringr, stringi, lmerTest)
+
+phys_long <- read.csv("Bad Data Removed, Long.csv")
+phys_long[,1] <- NULL
 
 ## We will only analyze data from Study 4, because that is easier.
-
 phys_4 <- phys_long %>% filter(study == 4)
+
+## Fixed Effects
+
+### HR_self = Stability ## Random effect: Well-trained people have different stability since HR variability is actually healthy.
+### HR_other = coupling. ## Random effect: Some pairs might actually hate eachother.
+### condition = condition ## Random effect: If you hate the other person, the condition doesn't matter.
+
+
+## Syntax Shenanigans
+
+### lm() implicitly adds a "1+" to the syntax, which means "Pick an intercept"
+### 0+ tells lme4() to not make several intercepts. In this case, we should say "0+condition + (HR_s + HR_o):condition"
+### Then take the above and do: (0+condition + (HR_s+HR_o):condition):Type
+
+## Random Effects: ([The whole goddamn model]|Participant, [The whole goddamn model]|Study)
 
 # Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
 
@@ -431,16 +537,25 @@ phys_4 <- phys_long %>% filter(study == 4)
 phys_4$condition <- relevel(phys_4$condition, "Synchronous")
 
 # Model change as a function of own and other previous state 
-HR_model <- lm(HR_change_self ~ (HR_self + HR_other)*condition, data = phys_4)
+
+# This is an alternative syntax than just "Change ~ (HR_self + HR_other)*condition" but the output is easier to read, and the model is essentially the same.
+
+HR_model <- lm(HR_change_self ~ 0 + condition + (HR_self + HR_other)*condition, data = phys_4)
+HR_model2 <- lm(HR_change_self ~ 0 + condition + (HR_self + HR_other):condition, data = phys_4)
 
 summary(HR_model)
+summary(HR_model2)
 
-Resp_model <- lm(Resp_change_self ~ (Resp_self + Resp_other)*condition, data = phys_4)
+# [Insert interpretation here]
 
-summary(Resp_model)
+# Within each condition, all values for HR_self are negative, as expected. The higher your HR_self is, the more it causes the heart rate change to slow decrease / slow down.
 
 
-# Bonus points: Add to the previous model also change in the other to see whether my adaptation is influenced by the other's adaptation.
+### Adding random effects (Buckle in! It's going to be a bumpy ride!)
+HR_model3 <- lmer(HR_change_self ~ 0 + condition +(HR_self + HR_other):condition + (0+condition|participant), data = phys_4)
+summary(HR_model3)
+
+### See further down for this model with surrogate pairs.
 
 ```
 
@@ -498,9 +613,9 @@ pacman::p_load(pacman,tidyverse, stringr, stringi, groupdata2)
 # Identify unique pairs within a given study (to keep things manageable) and create list of possible surrogate pairs (e.g. individual 1 from pair 1 and individual 2 from pair 2)
 
 
-phys_data <- read.csv("Cleaned Physiological Data.csv")
+good_data <- read.csv("Bad Data Removed.csv")
 
-phys_data <- phys_data %>% 
+good_data <- good_data %>% 
   group_by(group, condition) %>% 
   mutate(HR1fut = lead(HR1,1), #lead does the same as lag
          HR2fut = lead(HR2,1), 
@@ -511,40 +626,187 @@ phys_data <- phys_data %>%
          Resp1change = Resp1fut - Resp1,
          Resp2change = Resp2fut - Resp2)
 
-
-Groups <-as.numeric(as.character(unique(phys_data$group[phys_data$study==4]))) # List all pairs
+d_surrogate <- good_data[0,]
+Groups <-as.numeric(as.character(unique(good_data$group[good_data$study==4]))) # List all pairs
 SurrogateList<-expand.grid(a = Groups, b = Groups) # Identifyall possiblecombinationsof 2 pairs
 SurrogateList= subset(SurrogateList, a != b) # excludecombinationswith identicalpairs
 
 for (i in 1:nrow(SurrogateList)){ # loop throughall combinations
-  x <-subset(phys_data, group==SurrogateList$a[i]) # subset data from the firstpair
-  y <-subset(phys_data, group==SurrogateList$a[i]) # subset data from the secondpair 
+  print(SurrogateList$a[i])
+  x <-subset(good_data, group==SurrogateList$a[i]) # subset data from the firstpair
+  y <-subset(good_data, group!=SurrogateList$a[i]) # subset data from the secondpair 
   group<-c(800 + ((1:4)*i)) # createnew pair id
-  for (co in c("Synchronous","TurnTaking","SelfPaced", "Conversation")){ # loop throughconditions
-    if (co%in% unique(x$Condition) & co%in% unique(y$Condition)){ # check thatbothpairs have the data for thatcondition
-      z1 <-subset(x, Condition==co) # subsetonlythatcondtionfrom firstpair
-      z2 <-subset(y, Condition==co) # subsetonlythatcondtionfrom secondpair
-      if (nrow(z1) > nrow(z2)) {z1<-z1[1:length(z2)]}
-      if (nrow(z2) > nrow(z1)) { z2<-z2[1:length(z1)]}
+  for (co in c("Synchronous","TurnTaking", "Conversation", "MovementCoop", "MovementGuided")){ # loop through conditions
+    if (co%in% unique(x$condition) & co%in% unique(y$condition)){ # check that both pairs have the data for that condition
+      z1 <-subset(x, condition==co) # subset only that condtion from first pair
+      z2 <-subset(y, condition==co) # subset only that condtion from second pair
+      if (nrow(z1) > nrow(z2)) {z1<-z1[1:nrow(z2),]}
+      if (nrow(z2) > nrow(z1)) { z2<-z2[1:nrow(z1),]}
       w1 <-z1 %>% mutate(# assemblenew pair combiningthe 2 pairs
-          HR2 = z2$HR2,Resp2 = z2$Resp2,HR2fut = z2$HR2fut, Resp2fut = z2$Resp2fut, HR2change = z2$HR2change, Resp2change = z2$Resp2change)### DO SOMETHING TO SAVE THIS# makesure thatyoudo this!
+          HR2 = z2$HR2,Resp2 = z2$Resp2,HR2fut = z2$HR2fut, Resp2fut = z2$Resp2fut, HR2change = z2$HR2change, Resp2change = z2$Resp2change)
+      if (nrow(d_surrogate) == 0) {
+        d_surrogate <- w1}
+      else {
+        d_surrogate <- rbind(d_surrogate,w1)
+      }
+      
+      
+      ### DO SOMETHING TO SAVE THIS# make sure that you do this!
       } }}
 
 
- 
-# Starting from the wide format, create "surrogate" dataset with the data from surrogate pairs
 
 # Make it into long format
 
-# Create models as in chunks above, but adding an interaction with the Real vs. Surrogate variable (exclude shuffled ones for simplicity)
+
+# creating long data for HR change
+d_HR_change_self <- gather(d_surrogate, participant, HR_change_self, # new vars
+HR1change, HR2change) %>% #old vars
+  select( # drop irrelevant vars
+  time, HR_change_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
+
+#creating long data for Respiration
+d_Resp_change_self <- gather(d_surrogate, participant, Resp_change_self, # new vars
+Resp1change, Resp2change) %>% #old vars
+  select( # drop irrelevant vars
+  time, Resp_change_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
+
+#heart rate self
+d_HR_self <- gather(d_surrogate, participant, HR_self, # new vars
+HR1, HR2) %>% #old vars
+  select( # drop irrelevant vars
+  time, HR_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
 
 
+#future heart rate
+d_HR_fut <- gather(d_surrogate, participant, HR_fut, # new vars
+HR1fut, HR2fut) %>% #old vars
+  select( # drop irrelevant vars
+  time, HR_fut, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
+
+
+
+#Respiration self
+d_Resp_self <- gather(d_surrogate, participant, Resp_self, # new vars
+Resp1, Resp2) %>% #old vars
+  select( # drop irrelevant vars
+  time, Resp_self, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
+
+#future Respiration rate
+d_Resp_fut <- gather(d_surrogate, participant, Resp_fut, # new vars
+Resp1fut, Resp2fut) %>% #old vars
+  select( # drop irrelevant vars
+  time, Resp_fut, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
+
+
+# Making a new dataframe in which HR1/2 and Resp1/2 are switched, to generate the "other" variables
+d_surrogate_2 = d_surrogate
+d_surrogate_2$HR1 = d_surrogate$HR2
+d_surrogate_2$HR2 = d_surrogate$HR1
+d_surrogate_2$Resp1 = d_surrogate$Resp2
+d_surrogate_2$Resp2 = d_surrogate$Resp1
+
+#HR other
+d_HR_other <- gather(d_surrogate_2, participant, HR_other, # new vars
+HR1, HR2) %>% #old vars
+  select( # drop irrelevant vars
+  time, HR_other, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
+
+#Resp other
+d_Resp_other <- gather(d_surrogate_2, participant, Resp_other, # new vars
+Resp1, Resp2) %>% #old vars
+  select( # drop irrelevant vars
+  time, Resp_other, participant, study, group, condition, trial) %>% mutate( # create unique participant ID
+  participant = parse_number(as.character(group)) * 10 + parse_number(participant))
+
+
+#merging dataframes
+surrogate_all = cbind(d_HR_change_self, d_HR_self, d_HR_fut, d_HR_other, d_Resp_change_self, d_Resp_self, d_Resp_fut, d_Resp_other)
+surrogate_all_2 = surrogate_all %>% select(time, HR_change_self, HR_self, HR_fut, HR_other, participant, study, group, condition, trial, Resp_change_self, Resp_self, Resp_fut, Resp_other)
+
+#write.csv(surrogate_all_2, "Surrogate Long Data.csv")
+
+#surrogate_long <- read.csv("Surrogate Long Data.csv")
+surrogate_long <- surrogate_all_2
+surrogate_long$Type <- "Surrogate"
+
+write.csv(surrogate_long, "Surrogate Data, Long.csv")
+surrogate_long <- read.csv("Surrogate Data, Long.csv")
+surrogate_long[,1] <- NULL
+# Binding real and surrogate data
+phys_long <- read.csv("Bad Data Removed, Long.csv")
+phys_long[,1] <- NULL
+phys_long$Type <- "Real"
+
+
+really_long <- rbind(phys_long, surrogate_long)
+
+write.csv(really_long, "Real + Surrogate Data, Long.csv")
 
 ```
- 
+
+```{r}
+pacman::p_load(pacman,tidyverse, stringr, stringi, groupdata2)
+# Create models as in chunks above, but adding an interaction with the Real vs. Surrogate variable (exclude shuffled ones for simplicity)
+
+really_long <- read.csv("Real + Surrogate Data, Long.csv")
+really_long[,1] <- NULL
+
+## We will only analyze data from Study 4, because that is easier.
+phys_4 <- really_long %>% filter(study == 4)
+
+## Fixed Effects
+
+### HR_self = Stability ## Random effect: Well-trained people have different stability since HR variability is actually healthy.
+### HR_other = coupling. ## Random effect: Some pairs might actually hate eachother.
+### condition = condition ## Random effect: If you hate the other person, the condition doesn't matter.
+
+
+## Syntax Shenanigans
+
+### lm() implicitly adds a "1+" to the syntax, which means "Pick an intercept"
+### 0+ tells lme4() to not make several intercepts. In this case, we should say "0+condition + (HR_s + HR_o):condition"
+### Then take the above and do: (0+condition + (HR_s+HR_o):condition):Type
+
+## Random Effects: ([The whole goddamn model]|Participant, [The whole goddamn model]|Study)
+
+# Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
+
+# First we redefine the baseline.
+phys_4$condition <- relevel(phys_4$condition, "Synchronous")
+
+# Model change as a function of own and other previous state 
+
+# This is an alternative syntax than just "Change ~ (HR_self + HR_other)*condition" but the output is easier to read, and the model is essentially the same.
+
+HR_model <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other)*condition)*Type, data = phys_4)
+
+HR_model2 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other):condition):Type, data = phys_4)
+
+summary(HR_model)
+summary(HR_model2)
+
+# [Insert interpretation here]
+
+# Within each condition, all values for HR_self are negative, as expected. The higher your HR_self is, the more it causes the heart rate change to slow decrease / slow down.
+
+
+### Adding random effects (Buckle in! It's going to be a bumpy ride!)
+HR_model3 <- lmer(HR_change_self ~ (0 + condition +(HR_self + HR_other):condition):Type + (0+condition|participant), data = phys_4)
+summary(HR_model3)
+
+### Code - Basically complete. Under the assumption that:
+## - The "Change_other" variables need not be tested. - Resp need not be explicitly tested. - It's okay to simplify random effects.
+
+```
 
 ### Effects of Respiration coordination on heart rate coordination
  - describe how you would test those.
  - Optional: run the models and report them
-
- 
