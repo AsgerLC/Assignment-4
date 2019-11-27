@@ -117,34 +117,20 @@ sync_4 <- downsample(sync_3)
 
 pacman::p_load(pacman,tidyverse, stringr, stringi)
 
-## Plotting examples of the data
-#sync_raw$HR1 %>% matplot(type="l")# Plot
-#sync_raw$HR2 %>% matplot(type="l")# Plot
-#sync_raw$ECG1%>% matplot(type="l")# Plot
-#sync_raw$ECG2%>% matplot(type="l")# Plot
-#sync_raw$Resp1 %>% matplot(type="l")# Plot
-#sync_raw$Resp2 %>% matplot(type="l")# Plot
+## Plotting examples of Heart Rate data at various stages of preprocessing
+raw_plot <- sync_raw$HR1 %>% matplot(type="l") # Raw data
+raw_plot
 
-#sync_2$HR1 %>% matplot(type="l")# Plot
-#sync_2$HR2 %>% matplot(type="l")# Plot
-#sync_2$ECG1%>% matplot(type="l")# Plot
-#sync_2$ECG2%>% matplot(type="l")# Plot
-#sync_2$Resp1 %>% matplot(type="l")# Plot
-#sync_2$Resp2 %>% matplot(type="l")# Plot
+no_outliers_plot <- sync_2$HR1 %>% matplot(type="l") # Outliers removed
+no_outliers_plot
 
-#sync_3$HR1 %>% matplot(type="l")# Plot
-#sync_3$HR2 %>% matplot(type="l")# Plot
-#sync_3$ECG1%>% matplot(type="l")# Plot
-#sync_3$ECG2%>% matplot(type="l")# Plot
-#sync_3$Resp1 %>% matplot(type="l")# Plot
-#sync_3$Resp2 %>% matplot(type="l")# Plot
+scaled_plot <- sync_3$HR1 %>% matplot(type="l")# Data scaled
+scaled_plot
 
-p4 <- ggplot(data = sync_4) +
-  geom_path(aes(time, Resp1, color = "P1")) +
-  geom_path(aes(time, Resp2, color = "P2")) +
-  labs(x = "time", y = "Resp") +
-  theme(legend.position="bottom")
-p4
+downsampled_plot <- sync_4$HR1 %>% matplot(type="l")# Downsampled data
+downsampled_plot
+
+
 
 # Now we add the group, trial, condition to the cleaned up, scaled, downsampled data
 
@@ -544,7 +530,7 @@ HR_model <- lm(HR_change_self ~ 0 + condition + (HR_self + HR_other)*condition, 
 HR_model2 <- lm(HR_change_self ~ 0 + condition + (HR_self + HR_other):condition, data = phys_4)
 
 summary(HR_model)
-summary(HR_model2)
+object <- summary(HR_model2)
 
 # [Insert interpretation here]
 
@@ -552,8 +538,14 @@ summary(HR_model2)
 
 
 ### Adding random effects (Buckle in! It's going to be a bumpy ride!)
-HR_model3 <- lmer(HR_change_self ~ 0 + condition +(HR_self + HR_other):condition + (0+condition|participant), data = phys_4)
+HR_model3 <- lmerTest::lmer(HR_change_self ~ 0 + condition +(HR_self + HR_other)*condition + (0+condition|participant), data = phys_4, control = lmerControl(optimizer = "nloptwrap", calc.derivs = FALSE,  optCtrl = list(ftol_abs = 1e-10, xtol_abs = 1e-10, maxeval=10000)))
+
 summary(HR_model3)
+
+
+anova(HR_model3, HR_model) # This didn't significantly improve the model
+
+
 
 ### See further down for this model with surrogate pairs.
 
@@ -650,8 +642,6 @@ for (i in 1:nrow(SurrogateList)){ # loop throughall combinations
         d_surrogate <- rbind(d_surrogate,w1)
       }
       
-      
-      ### DO SOMETHING TO SAVE THIS# make sure that you do this!
       } }}
 
 
@@ -731,15 +721,13 @@ Resp1, Resp2) %>% #old vars
 surrogate_all = cbind(d_HR_change_self, d_HR_self, d_HR_fut, d_HR_other, d_Resp_change_self, d_Resp_self, d_Resp_fut, d_Resp_other)
 surrogate_all_2 = surrogate_all %>% select(time, HR_change_self, HR_self, HR_fut, HR_other, participant, study, group, condition, trial, Resp_change_self, Resp_self, Resp_fut, Resp_other)
 
-#write.csv(surrogate_all_2, "Surrogate Long Data.csv")
-
-#surrogate_long <- read.csv("Surrogate Long Data.csv")
 surrogate_long <- surrogate_all_2
 surrogate_long$Type <- "Surrogate"
 
 write.csv(surrogate_long, "Surrogate Data, Long.csv")
 surrogate_long <- read.csv("Surrogate Data, Long.csv")
 surrogate_long[,1] <- NULL
+
 # Binding real and surrogate data
 phys_long <- read.csv("Bad Data Removed, Long.csv")
 phys_long[,1] <- NULL
@@ -760,7 +748,7 @@ really_long <- read.csv("Real + Surrogate Data, Long.csv")
 really_long[,1] <- NULL
 
 ## We will only analyze data from Study 4, because that is easier.
-phys_4 <- really_long %>% filter(study == 4)
+really_long_4 <- really_long %>% filter(study == 4)
 
 ## Fixed Effects
 
@@ -780,18 +768,34 @@ phys_4 <- really_long %>% filter(study == 4)
 # Set the most interesting contrast e.g. by defining synchronous or conversation as the baseline
 
 # First we redefine the baseline.
-phys_4$condition <- relevel(phys_4$condition, "Synchronous")
+really_long_4$condition <- relevel(really_long_4$condition, "Synchronous")
 
 # Model change as a function of own and other previous state 
 
 # This is an alternative syntax than just "Change ~ (HR_self + HR_other)*condition" but the output is easier to read, and the model is essentially the same.
 
-HR_model <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other)*condition)*Type, data = phys_4)
+HR_model4 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other)*condition):Type, data = really_long_4)
+HR_model5 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other):condition):Type, data = really_long_4)
+HR_model6 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other):condition)*Type, data = really_long_4)
 
-HR_model2 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other):condition):Type, data = phys_4)
 
-summary(HR_model)
-summary(HR_model2)
+summary(HR_model4)
+summary(HR_model5)
+summary(HR_model6)
+
+
+table_1 <- summary(HR_model4)
+table_2 <- summary(HR_model5)
+table_3 <- summary(HR_model6)
+
+
+
+
+write.csv(table_1[["coefficients"]], "Table 1.csv")
+
+write.csv(table_2[["coefficients"]], "Table 2.csv")
+
+write.csv(table_3[["coefficients"]], "Table 3.csv")
 
 # [Insert interpretation here]
 
@@ -799,8 +803,20 @@ summary(HR_model2)
 
 
 ### Adding random effects (Buckle in! It's going to be a bumpy ride!)
-HR_model3 <- lmer(HR_change_self ~ (0 + condition +(HR_self + HR_other):condition):Type + (0+condition|participant), data = phys_4)
-summary(HR_model3)
+
+
+HR_model7 <- lmer(HR_change_self ~ ((HR_self + HR_other):condition):Type + (1+condition|participant), data = really_long_4)
+
+summary(HR_model7)
+
+# Is there significant coordination at all? - Stability and coupling
+
+# Does coordination differ between conditions? 
+
+# Is there significantly more coordination in the data than in data with surrogate controls?
+
+
+anova(HR_model6, HR_model5)
 
 ### Code - Basically complete. Under the assumption that:
 ## - The "Change_other" variables need not be tested. - Resp need not be explicitly tested. - It's okay to simplify random effects.
