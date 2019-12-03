@@ -628,7 +628,7 @@ for (i in 1:nrow(SurrogateList)){ # loop throughall combinations
   x <-subset(good_data, group==SurrogateList$a[i]) # subset data from the firstpair
   y <-subset(good_data, group!=SurrogateList$a[i]) # subset data from the secondpair 
   group<-c(800 + ((1:4)*i)) # createnew pair id
-  for (co in c("Synchronous","TurnTaking", "Conversation", "MovementCoop", "MovementGuided")){ # loop through conditions
+  for (co in c("Synchronous","TurnTaking", "Conversation", "MovementCoop", "Movement")){ # loop through conditions
     if (co%in% unique(x$condition) & co%in% unique(y$condition)){ # check that both pairs have the data for that condition
       z1 <-subset(x, condition==co) # subset only that condtion from first pair
       z2 <-subset(y, condition==co) # subset only that condtion from second pair
@@ -774,8 +774,8 @@ really_long_4$condition <- relevel(really_long_4$condition, "Synchronous")
 
 # This is an alternative syntax than just "Change ~ (HR_self + HR_other)*condition" but the output is easier to read, and the model is essentially the same.
 
-HR_model4 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other)*condition):Type, data = really_long_4)
-HR_model5 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other):condition):Type, data = really_long_4)
+HR_model4 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other):condition):Type, data = really_long_4)
+HR_model5 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other)*condition):Type, data = really_long_4)
 HR_model6 <- lm(HR_change_self ~ (0 + condition + (HR_self + HR_other):condition)*Type, data = really_long_4)
 
 
@@ -790,12 +790,20 @@ table_3 <- summary(HR_model6)
 
 
 
+coef_1 <- round(table_1[["coefficients"]], 5)
+coef_2<- round(table_2[["coefficients"]], 5)
+coef_3<- round(table_3[["coefficients"]], 5)
 
-write.csv(table_1[["coefficients"]], "Table 1.csv")
 
-write.csv(table_2[["coefficients"]], "Table 2.csv")
 
-write.csv(table_3[["coefficients"]], "Table 3.csv")
+
+write.csv(coef_1, "Table 1.csv")
+
+write.csv(coef_2, "Table 2.csv")
+
+write.csv(coef_3, "Table 3.csv")
+
+
 
 # [Insert interpretation here]
 
@@ -816,7 +824,8 @@ summary(HR_model7)
 # Is there significantly more coordination in the data than in data with surrogate controls?
 
 
-anova(HR_model6, HR_model5)
+comparison <- anova(HR_model7, HR_model5)
+comparison
 
 ### Code - Basically complete. Under the assumption that:
 ## - The "Change_other" variables need not be tested. - Resp need not be explicitly tested. - It's okay to simplify random effects.
