@@ -1,6 +1,6 @@
 ---
 title: "Assignment 4 - Heart rate, Respiration and interpersonal coordination"
-author: "Asger L. Christiansen"
+author: "Asger, Rebecca, Dora, Jana, Sophia"
 date: "August 20, 2019"
 output: word_document
 ---
